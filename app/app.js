@@ -4,7 +4,14 @@
 const { useState } = React;
 
 function PasswordResetForm() {
-  const [endpoint, setEndpoint] = useState(process.env.REACT_APP_ENDPOINT || 'http://localhost:8000/api/v1/auth/password-reset');
+  const defaultEndpoint = 'http://localhost:8000/api/v1/auth/password-reset';
+  let envEndpoint = null;
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_ENDPOINT) {
+    envEndpoint = process.env.REACT_APP_ENDPOINT;
+  } else if (typeof window !== 'undefined' && window.REACT_APP_ENDPOINT) {
+    envEndpoint = window.REACT_APP_ENDPOINT;
+  }
+  const [endpoint, setEndpoint] = useState(envEndpoint || defaultEndpoint);
   const [email, setEmail] = useState('');
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
