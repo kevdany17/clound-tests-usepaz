@@ -1,0 +1,12 @@
+# Enable only access to the /app directory via HTTP
+# Deny all requests except those targeting /app
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # If the request URI does NOT start with /app/, forbid it
+  RewriteCond %{REQUEST_URI} !^/app/
+  RewriteRule ^ - [F]
+</IfModule>
+
+# Additionally, ensure directory listing is disabled
+Options -Indexes
