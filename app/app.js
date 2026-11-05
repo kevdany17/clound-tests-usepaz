@@ -4,7 +4,9 @@
 const { useState } = React;
 
 function PasswordResetForm() {
-  const defaultEndpoint = 'http://localhost:8000/api/v1/auth/password-reset';
+  const serverIp = (typeof process !== 'undefined' && process.env && process.env.SERVER_IP) || (typeof window !== 'undefined' && window.SERVER_IP) || 'localhost';
+const serverPort = (typeof process !== 'undefined' && process.env && process.env.SERVER_PORT) || (typeof window !== 'undefined' && window.SERVER_PORT) || '8000';
+const defaultEndpoint = `${serverIp}:${serverPort}/api/v1/auth/password-reset`;
   let envEndpoint = null;
   if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_ENDPOINT) {
     envEndpoint = process.env.REACT_APP_ENDPOINT;
