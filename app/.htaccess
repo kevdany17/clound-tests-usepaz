@@ -1,0 +1,32 @@
+# ============================================================
+# .htaccess /app — Protege config.js de descarga/navegación directa
+# ============================================================
+
+# 1. Sin listado de directorio
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 2. Bloquear dotfiles dentro de /app/
+    RewriteRule (^|\/)\. - [F,L]
+
+    # 3. Bloquear acceso DIRECTO a config.js como recurso de navegación
+    #    Solo se permite cuando Sec-Fetch-Dest es "script" o viene referenciado
+    #    por una página del mismo origen (Referer dentro de /app/).
+    RewriteCond %{REQUEST_URI} config\.js$ [NC]
+    RewriteCond %{HTTP:Sec-Fetch-Dest} !^script$ [NC]
+    RewriteCond %{HTTP:Sec-Fetch-Dest} !^$ [NC]
+    RewriteRule ^ - [F,L]
+</IfModule>
+
+# 4. Forzar tipo MIME correcto para archivos JS
+<FilesMatch "\.js$">
+    Header set Content-Type "application/javascript"
+</FilesMatch>
+
+# 5. No cachear config.js (contiene endpoint que puede cambiar)
+<FilesMatch "config\.js$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate"
+    Header set Pragma "no-cache"
+</FilesMatch>
