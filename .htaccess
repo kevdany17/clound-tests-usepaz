@@ -1,12 +1,27 @@
-# Enable only access to the /app directory via HTTP
-# Deny all requests except those targeting /app
+# ============================================================
+# .htaccess RAÍZ — Bloquea todo acceso fuera de /app/
+# ============================================================
+
+# 1. Desactivar listado de directorios
+Options -Indexes
 
 <IfModule mod_rewrite.c>
-  RewriteEngine On
-  # If the request URI does NOT start with /app/, forbid it
-  RewriteCond %{REQUEST_URI} !^/app/
-  RewriteRule ^ - [F]
+    RewriteEngine On
+
+    # 2. Bloquear dotfiles en cualquier nivel (.env, .git, .htaccess expuesto, etc.)
+    RewriteRule (^|\/)\. - [F,L]
+
+    # 3. Permitir explícitamente todo lo que empiece con /app/
+    RewriteCond %{REQUEST_URI} ^/app/ [NC]
+    RewriteRule ^ - [L]
+
+    # 4. Bloquear TODO lo demás → 403 Forbidden
+    RewriteRule ^ - [F,L]
 </IfModule>
 
-# Additionally, ensure directory listing is disabled
-Options -Indexes
+# 5. Cabeceras de seguridad adicionales
+<IfModule mod_headers.c>
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
