@@ -111,29 +111,50 @@ curl -s -X POST http://localhost:8000/api/v1/internal/broadcast-email \
 
 Ahora conecta Nginx delante de Uvicorn (con Uvicorn escuchando únicamente en `127.0.0.1:8000`).
 
-La configuración de Nginx en `/etc/nginx/sites-available/sendemail` debe ser:
+#### Paso 1: Deshabilitar el sitio por defecto de Nginx
+Para evitar conflictos de puertos o que Nginx capture las peticiones con dominios desconocidos enviándolas al sitio predeterminado de bienvenida ("Welcome to nginx"), elimina el enlace simbólico del sitio por defecto:
+
+```bash
+sudo rm -f /etc/nginx/sites-enabled/default
+```
+
+#### Paso 2: Crear y habilitar la configuración del Reverse Proxy
+Crea el archivo `/etc/nginx/sites-available/sendemail`:
+
+```bash
+sudo nano /etc/nginx/sites-available/sendemail
+```
+
+Agrega la siguiente configuración (ajusta `tu-dominio.com` o tu IP pública en `server_name` y `Host`):
 
 ```nginx
 server {
-    listen 80;
-    server_name tu-dominio.com; # Dominio legítimo esperado
+    listen 80 default_server;
+    server_name tu-dominio.com; # Tu IP pública o dominio legítimo esperado
 
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
 
-        # 1. Normaliza el Host con el nombre oficial del servidor
-        proxy_set_header Host $host;
+        # 1. Normaliza el Host con el nombre oficial del servidor (ignora el Host enviado por el atacante)
+        proxy_set_header Host $server_name;
 
         # 2. PISA y descarta cualquier X-Real-IP enviada por el atacante
         proxy_set_header X-Real-IP $remote_addr;
 
-        # 3. Agrega la IP real física de la conexión TCP a la cadena de proxies
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 3. PISA X-Forwarded-For usando únicamente la IP real física del cliente
+        proxy_set_header X-Forwarded-For $remote_addr;
 
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+```
+
+Habilita el sitio creando el enlace simbólico hacia `sites-enabled`, verifica la sintaxis y recarga el servicio:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/sendemail /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 Repite los ataques haciendo las peticiones al puerto público de **Nginx** (puerto `80`):
@@ -148,7 +169,7 @@ curl -s -X POST http://<IP_O_DOMINIO>/api/v1/auth/password-reset \
 
 **Resultado obtenido (Protegido):**
 * Nginx verifica que `Host: atacante-phishing.com` no corresponde con el bloque `server_name tu-dominio.com` y **descarta la petición** (HTTP 404/400).
-* O bien, mediante `proxy_set_header Host $host;`, Nginx reemplaza el valor con el dominio legítimo antes de pasarlo a Python.
+* O bien, mediante `proxy_set_header Host $server_name;`, Nginx reemplaza el valor con el dominio legítimo antes de pasarlo a Python.
 * La URL en el correo contendrá siempre el dominio seguro: `https://tu-dominio.com/...`.
 
 ---
