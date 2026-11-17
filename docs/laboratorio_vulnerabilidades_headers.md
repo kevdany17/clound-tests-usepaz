@@ -109,7 +109,11 @@ curl -s -X POST http://localhost:8000/api/v1/internal/broadcast-email \
 
 ### FASE 2: Pruebas con Nginx como Reverse Proxy
 
-Ahora conecta Nginx delante de Uvicorn (con Uvicorn escuchando únicamente en `127.0.0.1:8000`).
+Ahora conecta Nginx delante de Uvicorn (con Uvicorn escuchando únicamente de manera local en `127.0.0.1:8000` para evitar que los atacantes se salten el proxy llamando al puerto 8000 directamente):
+
+```bash
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
 #### Paso 1: Deshabilitar el sitio por defecto de Nginx
 Para evitar conflictos de puertos o que Nginx capture las peticiones con dominios desconocidos enviándolas al sitio predeterminado de bienvenida ("Welcome to nginx"), elimina el enlace simbólico del sitio por defecto:
@@ -125,18 +129,26 @@ Crea el archivo `/etc/nginx/sites-available/sendemail`:
 sudo nano /etc/nginx/sites-available/sendemail
 ```
 
-Agrega la siguiente configuración (ajusta `tu-dominio.com` o tu IP pública en `server_name` y `Host`):
+Agrega la configuración protegida (reemplaza `tu-dominio.com` por tu IP pública o dominio oficial):
 
 ```nginx
+# 1. Bloque por defecto: Captura y RECHAZA cualquier petición con Host no autorizado o manipulado
 server {
     listen 80 default_server;
+    server_name _;
+    return 400 "Acceso denegado: Cabecera Host invalida o no autorizada.\n";
+}
+
+# 2. Bloque legítimo: Atiende únicamente el tráfico hacia tu IP pública o dominio oficial
+server {
+    listen 80;
     server_name tu-dominio.com; # Tu IP pública o dominio legítimo esperado
 
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
 
-        # 1. Normaliza el Host con el nombre oficial del servidor (ignora el Host enviado por el atacante)
+        # 1. Normaliza el Host con el nombre oficial del servidor
         proxy_set_header Host $server_name;
 
         # 2. PISA y descarta cualquier X-Real-IP enviada por el atacante
